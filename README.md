@@ -99,7 +99,7 @@ EXEC xx_spPickingSlipEmailNotification_DACH_22062017
 14.01.2018	:	xx_spPickingSlipEmailNotification_DACH_14012018
 				Add document starting with 8 & 9 as per email Keith Fri 12.01.2018
 				xx_spPickingSlipEmailNotification_DACH_15012018
-
+just because i can
 ***********************************************************************/
 
 
