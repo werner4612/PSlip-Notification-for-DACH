@@ -104,21 +104,19 @@ EXEC xx_spPickingSlipEmailNotification_DACH_22062017
 
 
 DECLARE @SONumber	Varchar(MAX) =(select  TOP(1) ordernum 
-				-- select distinct ordernum
-				from InvNum i
-				INNER JOIN _btblInvoiceLines il on il.iInvoiceID=i.AutoIndex
-				where 
-					--	until 14.01.2018
-					--	((DocType		=	4 and DocState=1) or (DocType =	4 and DocState=4 and LEFT(OrderNum,2) in('13')))
-					--	as from 15.01.2018 onwards
-					((DocType		=	4 and DocState=1) or (DocType =	4 and DocState=4 and LEFT(OrderNum,2) in('13','80','90')))
-					and OrderNum not in (Select OrderNum from xx_PickingSlips)
-					and CONVERT(Date,GETDATE())>'2016-08-10'
-					and (select count(iStockCodeID) from _btblInvoiceLines il
-								Inner join stkitem s on s.stocklink=il.istockcodeid
-								where ServiceItem=0)>0
-								and AccountID > 0
-								and CONVERT(Date,InvDate)>'2017-04-10')
+					from InvNum i
+					INNER JOIN _btblInvoiceLines il on il.iInvoiceID=i.AutoIndex
+					where 	((DocType=4 and DocState=1) 
+						or (DocType=4 
+							and DocState=4 
+							and LEFT(OrderNum,2) in('13','80','90')))
+						and OrderNum not in (Select OrderNum from xx_PickingSlips)
+						and CONVERT(Date,GETDATE())>'2016-08-10'
+						and (select count(iStockCodeID) from _btblInvoiceLines il
+							Inner join stkitem s on s.stocklink=il.istockcodeid
+							where ServiceItem=0)>0
+							and AccountID > 0
+							and CONVERT(Date,InvDate)>'2017-04-10')
 
 IF @SONumber is NOT null or @SONumber<>''
 
@@ -126,83 +124,74 @@ BEGIN
 
 	Declare 
 	-- Email Variables
-	@EmailSubject			VARCHAR(MAX),
-	@EmailBody				VARCHAR(MAX),
+	@EmailSubject		VARCHAR(MAX),
+	@EmailBody		VARCHAR(MAX),
 
 	-- Common Variables
-	@BodyHeader				varchar(MAX),
-	@BodyDetails			varchar(MAX),
-	@BodyTail				varchar(MAX),
-	@DBName					Varchar(MAX),
-	@AddressDetails			VarChar(MAX),
-	@ToEmail				Varchar(Max),
-	@CopyEmail				Varchar(Max),
-	@Message1				Varchar(MAx),
-	@PickerName				VarChar(MAX)	=	'Picker Name &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp ........................&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' + 'Signature ........................&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' + 'Date ........................' + '<br/>',
+	@BodyHeader		varchar(MAX),
+	@BodyDetails		varchar(MAX),
+	@BodyTail		varchar(MAX),
+	@DBName			Varchar(MAX),
+	@AddressDetails		VarChar(MAX),
+	@ToEmail		Varchar(Max),
+	@CopyEmail		Varchar(Max),
+	@Message1		Varchar(MAx),
+	@PickerName		VarChar(MAX)	=	'Picker Name &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp ........................&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' + 'Signature ........................&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' + 'Date ........................' + '<br/>',
+	
 	@CheckerName1			VarChar(MAX)	=	'Checked by Name ........................&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' + 'Signature ........................&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' + 'Date ........................' + '<br/>',
+	
 	@CheckerName2			VarChar(MAX)	=	'Checked by Name ........................&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' + 'Signature ........................&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' + 'Date ........................' + '<br/>',
+	
 	
 	@CustDCLink				Int
 	
-	SET @DBName			=	(SELECT DB_NAME())
-	SET @AddressDetails	=	(select PhAddress1 + ', '+ PhAddress2 +', '+PhAddress3 +', Telephone:'+ Telephone1 from Entities)
+	SET @DBName		=	(SELECT DB_NAME())
+	SET @AddressDetails	=	(select PhAddress1 + ', '+ PhAddress2 +', '+PhAddress3 +', Telephone:'+ Telephone1 
+						from Entities)
+	SET @ToEmail 		= 	'ShippingDACH@frontrunneroutfitters.eu'				
+	SET @Message1		=	(Select Message1 from InvNum
+						WHERE OrderNum=@SONumber and DocType=4)				
+	SET @CustDCLink		= 	(Select top(1) AccountID from InvNum where OrderNum=@SONumber)
 	
-	SET @ToEmail = 'ShippingDACH@frontrunneroutfitters.eu'
-	--SET @CopyEmail = CASE 
-	--	WHEN DB_NAME()='Frontrunner' THEN 'shipping@frontrunner.co.za'
-	--	WHEN DB_NAME()='Frontrunner EU' THEN 'shipping@frontrunneroutfitters.eu'
-	--	WHEN DB_NAME()='Front Runner DACH' THEN 'ShippingDACH@frontrunneroutfitters.eu'
-	--	WHEN DB_NAME()='Frontrunner AUS' THEN 'werner@blueglobe27.com'
-	--	WHEN DB_NAME()='Frontrunner USA' THEN 'Shipping-USA@frontrunneroutfitters.com'
-	----	WHEN DB_NAME()='Frontrunner USA' THEN 'boipelo@blueglobe27.com'
-
-		
-							
-	SET @Message1=	(Select Message1 from InvNum
-						WHERE OrderNum=@SONumber and DocType=4)
-						
-	SET @CustDCLink= (Select top(1) AccountID from InvNum where OrderNum=@SONumber)
-	
-	DECLARE @CustAccount			Varchar(MAX)	=	(Select ISNULL(Account,'N/A') from Client where DCLink=@CustDCLink)	
-	DECLARE @CustName				Varchar(MAX)	=	(Select ISNULL(Name,'N/A') from Client where DCLink=@CustDCLink)
-	DECLARE @Phys1					Varchar(MAX)	=	(Select ISNULL(Address1,'N/A') from InvNum where OrderNum=@SONumber and DocType=4)
-	DECLARE @Phys2					Varchar(MAX)	=	(Select ISNULL(Address2,'') from InvNum where OrderNum=@SONumber and DocType=4)
-	DECLARE @Phys3					Varchar(MAX)	=	(Select ISNULL(Address3,'') from InvNum where OrderNum=@SONumber and DocType=4)
-	DECLARE @Phys4					Varchar(MAX)	=	(Select ISNULL(Address4,'') from InvNum where OrderNum=@SONumber and DocType=4)
-	DECLARE @Phys5					Varchar(MAX)	=	(Select ISNULL(Address5,'') from InvNum where OrderNum=@SONumber and DocType=4)
-	DECLARE @PhysicalPC				Varchar(MAX)	=	(Select ISNULL(Address6,'') from InvNum where OrderNum=@SONumber and DocType=4)
-	DECLARE @CustDetails			Varchar(MAX)	=	
-				(Select 'Customer: ' 
-					+@CustAccount+', '
-					+@CustName)
-	DECLARE @DeliveryDetails		VARCHAR(MAX)	=	
-					(Select 'Deliver to: ' 
-					+@Phys1+', '
-					+@Phys2+', '
-					+@Phys3+', '
-					+@Phys4+', '
-					+@Phys5+', '
-					+@PhysicalPC)
+	DECLARE @CustAccount		Varchar(MAX)	=	(Select ISNULL(Account,'N/A') from Client where DCLink=@CustDCLink)	
+	DECLARE @CustName		Varchar(MAX)	=	(Select ISNULL(Name,'N/A') from Client where DCLink=@CustDCLink)
+	DECLARE @Phys1			Varchar(MAX)	=	(Select ISNULL(Address1,'N/A') from InvNum where OrderNum=@SONumber 
+									and DocType=4)
+	DECLARE @Phys2			Varchar(MAX)	=	(Select ISNULL(Address2,'') from InvNum where OrderNum=@SONumber 
+									and DocType=4)
+	DECLARE @Phys3			Varchar(MAX)	=	(Select ISNULL(Address3,'') from InvNum where OrderNum=@SONumber 
+									and DocType=4)
+	DECLARE @Phys4			Varchar(MAX)	=	(Select ISNULL(Address4,'') from InvNum where OrderNum=@SONumber 
+									and DocType=4)
+	DECLARE @Phys5			Varchar(MAX)	=	(Select ISNULL(Address5,'') from InvNum where OrderNum=@SONumber 
+									and DocType=4)
+	DECLARE @PhysicalPC		Varchar(MAX)	=	(Select ISNULL(Address6,'') from InvNum where OrderNum=@SONumber 
+									and DocType=4)
+	DECLARE @CustDetails		Varchar(MAX)	=	(Select 'Customer: ' 
+									+@CustAccount+', '
+									+@CustName)
+	DECLARE @DeliveryDetails	VARCHAR(MAX)	=	(Select 'Deliver to: ' 
+									+@Phys1+', '
+									+@Phys2+', '
+									+@Phys3+', '
+									+@Phys4+', '
+									+@Phys5+', '
+									+@PhysicalPC)
 						
 	--print @SONumber				
 	    
 	-- Set  Header Line 		
-	SET @EmailSubject =(
+	SET @EmailSubject =
+		(
 		select c.Account + ' - ' + Name + ' (' + OrderNum + '/'+ convert(Varchar(20),OrderDate,105) +') ' 	
-		-- select c.account,i.ordernum,GETDATE() As emailed into xx_PickingSlips
 		FROM [dbo].[InvNum] i
-		INNER JOIN [dbo].[Client] c
-				On c.DCLink=i.AccountID	
-		where 1=1
-		--and DocType	=	4
-		--and DocState	=	1
-		and OrderNum	=	@SONumber and DocType=4
-	--	and @SONumber not IN(Select OrderNum from xx_PickingSlips where emailed is null)
+		INNER JOIN [dbo].[Client] c On c.DCLink=i.AccountID	
+			where 1=1
+			and OrderNum	=	@SONumber and DocType=4
 		)
 		
 	-- set global table tail
 	Set @BodyTail = '</table></body></html>'
-
 
 	-- set global table head
 	 SET @BodyHeader = '<html><head>' + '<style>'
@@ -254,13 +243,14 @@ BEGIN
 	--	,'' AS 'td',''
 		-- select *
 		FROM [dbo].[InvNum] i
-				inner join _btblInvoiceLines il on i.AutoIndex=il.iInvoiceID
-				inner join stkitem s on s.Stocklink=il.iStockCodeID	
-				outer apply [Front Runner DACH].[dbo].[xx_ufnQtyCompInKits_21012017V1] (s.code) f2
-				LEFT JOIN stkitem s1 on s1.Code=f2.code
-				LEFT JOIN _btblBINLocation bl on bl.idBinLocation=ISNULL(s1.iBinLocationID,s.iBinLocationID)
+			inner join _btblInvoiceLines il on i.AutoIndex=il.iInvoiceID
+			inner join stkitem s on s.Stocklink=il.iStockCodeID	
+			outer apply [Front Runner DACH].[dbo].[xx_ufnQtyCompInKits_21012017V1] (s.code) f2
+			LEFT JOIN stkitem s1 on s1.Code=f2.code
+			LEFT JOIN _btblBINLocation bl on bl.idBinLocation=ISNULL(s1.iBinLocationID,s.iBinLocationID)
 			where 1=1
-			and	((DocType = 4 and DocState = 1) or (DocType = 4 and DocState = 4 and LEFT(OrderNum,2) in('13','80','90')))
+			and	((DocType = 4 and DocState = 1) 
+			or (DocType = 4 and DocState = 4 and LEFT(OrderNum,2) in('13','80','90')))
 			and s.ServiceItem	=	0
 			and OrderNum		=	@SONumber
 			
