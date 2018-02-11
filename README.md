@@ -149,8 +149,9 @@ BEGIN
 	SET @AddressDetails	=	(select PhAddress1 + ', '+ PhAddress2 +', '+PhAddress3 +', Telephone:'+ Telephone1 
 						from Entities)
 	SET @ToEmail 		= 	'ShippingDACH@frontrunneroutfitters.eu'				
-	SET @Message1		=	(Select Message1 from InvNum
-						WHERE OrderNum=@SONumber and DocType=4)				
+	-- added 11.02.2018
+	SET @Message1		=	(Select top(1) CONVERT(VARCHAR(20),CONVERT(DECIMAL(15,2),OrdTotExcl)) from Invnum
+								WHERE OrderNum=@SONumber and DocType=4 and Message1='')							
 	SET @CustDCLink		= 	(Select top(1) AccountID from InvNum where OrderNum=@SONumber)
 	
 	DECLARE @CustAccount		Varchar(MAX)	=	(Select ISNULL(Account,'N/A') from Client where DCLink=@CustDCLink)	
